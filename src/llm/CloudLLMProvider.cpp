@@ -124,30 +124,48 @@ void CloudLLMProvider::processMessage(
     }
     
     juce::String requestBody = buildRequestBody(userMessage, context);
+    DBG("LLM Request body: " << requestBody.substring(0, 200) << "...");
     
     juce::URL url(OPENAI_API_URL);
     url = url.withPOSTData(requestBody);
     
-    juce::StringPairArray headers;
-    headers.set("Content-Type", "application/json");
-    headers.set("Authorization", "Bearer " + apiKey);
+    // Build headers string in HTTP format
+    juce::String headersString = "Content-Type: application/json\r\n";
+    headersString += "Authorization: Bearer " + apiKey + "\r\n";
     
+    DBG("Making API request to: " << OPENAI_API_URL);
+    
+    int statusCode = 0;
     auto options = juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
-        .withExtraHeaders(headers.getDescription())
-        .withConnectionTimeoutMs(30000);
+        .withExtraHeaders(headersString)
+        .withConnectionTimeoutMs(30000)
+        .withStatusCode(&statusCode);
     
     std::unique_ptr<juce::InputStream> stream = url.createInputStream(options);
     
+    DBG("API response status code: " << statusCode);
+    
     if (stream == nullptr)
     {
+        DBG("Failed to create input stream for API request");
         IntentResult result;
         result.success = false;
-        result.errorMessage = "Failed to connect to LLM API";
+        result.errorMessage = "Failed to connect to LLM API. Check your internet connection.";
         onComplete(result);
         return;
     }
     
     juce::String responseText = stream->readEntireStreamAsString();
+    DBG("API response: " << responseText.substring(0, 500));
+    
+    if (statusCode != 200)
+    {
+        IntentResult result;
+        result.success = false;
+        result.errorMessage = "API error (status " + juce::String(statusCode) + "): " + responseText.substring(0, 200);
+        onComplete(result);
+        return;
+    }
     
     IntentResult result = parseResponse(responseText);
     onComplete(result);

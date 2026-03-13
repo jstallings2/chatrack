@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --chatrack-bg: #0f0f1a;
+  --chatrack-surface: #1a1a2e;
+  --chatrack-surface-light: #252542;
+  --chatrack-border: #2d2d4a;
+  --chatrack-accent: #7c3aed;
+  --chatrack-accent-light: #8b5cf6;
+  --chatrack-text: #e2e8f0;
+  --chatrack-text-muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--chatrack-bg);
+  color: var(--chatrack-text);
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--chatrack-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--chatrack-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--chatrack-accent);
+}
+
+/* Input focus styles */
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--chatrack-accent);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+/* Button transitions */
+button {
+  transition: all 0.15s ease;
+}
+
+/* Knob styles */
+.knob-container {
+  touch-action: none;
+  user-select: none;
+}
+
+/* Animation for thinking indicator */
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.thinking-dot {
+  animation: pulse 1.4s infinite ease-in-out;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}

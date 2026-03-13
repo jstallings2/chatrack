@@ -1,0 +1,164 @@
+{
+  "reduce_mud": {
+    "label": "Reduce Mud",
+    "processor": "eq",
+    "defaults": {
+      "eq.band1.freq": 280,
+      "eq.band1.gain": -2.5,
+      "eq.band1.q": 1.2,
+      "eq.band1.enabled": 1
+    },
+    "bounds": {
+      "eq.band1.freq": [200, 400],
+      "eq.band1.gain": [-6, 0],
+      "eq.band1.q": [0.5, 3.0]
+    },
+    "magnitude_scales": ["eq.band1.gain"],
+    "summary": ["Applied low-mid EQ cut", "Targeted buildup around 280 Hz"]
+  },
+  "brighten": {
+    "label": "Brighten",
+    "processor": "eq",
+    "defaults": {
+      "eq.band3.freq": 10000,
+      "eq.band3.gain": 2.0,
+      "eq.band3.q": 0.7,
+      "eq.band3.enabled": 1
+    },
+    "bounds": {
+      "eq.band3.freq": [8000, 16000],
+      "eq.band3.gain": [0, 6],
+      "eq.band3.q": [0.3, 1.5]
+    },
+    "magnitude_scales": ["eq.band3.gain"],
+    "summary": ["Added high shelf boost", "Enhanced air and presence"]
+  },
+  "add_warmth": {
+    "label": "Add Warmth",
+    "processor": "saturation",
+    "defaults": {
+      "sat.drive": 0.25,
+      "sat.mix": 0.6,
+      "sat.enabled": 1
+    },
+    "bounds": {
+      "sat.drive": [0.1, 0.5],
+      "sat.mix": [0.3, 1.0]
+    },
+    "magnitude_scales": ["sat.drive"],
+    "summary": ["Added subtle saturation", "Gentle harmonic thickening"]
+  },
+  "tame_harshness": {
+    "label": "Tame Harshness",
+    "processor": "eq",
+    "defaults": {
+      "eq.band2.freq": 3500,
+      "eq.band2.gain": -2.0,
+      "eq.band2.q": 1.5,
+      "eq.band2.enabled": 1
+    },
+    "bounds": {
+      "eq.band2.freq": [2000, 5000],
+      "eq.band2.gain": [-6, 0],
+      "eq.band2.q": [0.8, 3.0]
+    },
+    "magnitude_scales": ["eq.band2.gain"],
+    "summary": ["Reduced harsh frequencies", "Smoothed upper-mids around 3.5 kHz"]
+  },
+  "make_forward": {
+    "label": "Make More Forward",
+    "processor": "eq",
+    "defaults": {
+      "eq.band2.freq": 2500,
+      "eq.band2.gain": 2.0,
+      "eq.band2.q": 1.0,
+      "eq.band2.enabled": 1
+    },
+    "bounds": {
+      "eq.band2.freq": [1500, 4000],
+      "eq.band2.gain": [0, 5],
+      "eq.band2.q": [0.5, 2.0]
+    },
+    "magnitude_scales": ["eq.band2.gain"],
+    "summary": ["Boosted presence frequencies", "Enhanced forward projection"]
+  },
+  "widen": {
+    "label": "Widen Stereo",
+    "processor": "stereo",
+    "defaults": {
+      "stereo.width": 1.4,
+      "stereo.enabled": 1
+    },
+    "bounds": {
+      "stereo.width": [1.0, 2.0]
+    },
+    "magnitude_scales": ["stereo.width"],
+    "summary": ["Increased stereo width", "Enhanced spatial separation"]
+  },
+  "narrow": {
+    "label": "Narrow Stereo",
+    "processor": "stereo",
+    "defaults": {
+      "stereo.width": 0.6,
+      "stereo.enabled": 1
+    },
+    "bounds": {
+      "stereo.width": [0.0, 1.0]
+    },
+    "magnitude_scales": ["stereo.width"],
+    "summary": ["Reduced stereo width", "More focused center image"]
+  },
+  "add_saturation": {
+    "label": "Add Saturation",
+    "processor": "saturation",
+    "defaults": {
+      "sat.drive": 0.35,
+      "sat.mix": 0.8,
+      "sat.enabled": 1
+    },
+    "bounds": {
+      "sat.drive": [0.2, 0.7],
+      "sat.mix": [0.5, 1.0]
+    },
+    "magnitude_scales": ["sat.drive"],
+    "summary": ["Applied saturation", "Added harmonic color and edge"]
+  },
+  "glue": {
+    "label": "Glue / Compress",
+    "processor": "compressor",
+    "defaults": {
+      "comp.threshold": -18,
+      "comp.ratio": 3.0,
+      "comp.attack": 15,
+      "comp.release": 150,
+      "comp.enabled": 1
+    },
+    "bounds": {
+      "comp.threshold": [-30, -6],
+      "comp.ratio": [1.5, 8],
+      "comp.attack": [1, 50],
+      "comp.release": [50, 500]
+    },
+    "magnitude_scales": ["comp.ratio"],
+    "summary": ["Applied gentle compression", "Added cohesion and glue"]
+  },
+  "make_punchy": {
+    "label": "Make Punchier",
+    "processor": "compressor",
+    "defaults": {
+      "comp.threshold": -15,
+      "comp.ratio": 4.0,
+      "comp.attack": 25,
+      "comp.release": 80,
+      "comp.enabled": 1
+    },
+    "bounds": {
+      "comp.threshold": [-25, -8],
+      "comp.ratio": [2, 6],
+      "comp.attack": [10, 50],
+      "comp.release": [40, 200]
+    },
+    "magnitude_scales": ["comp.ratio", "comp.attack"],
+    "summary": ["Enhanced transient punch", "Slow attack lets transients through"]
+  }
+}

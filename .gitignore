@@ -1,0 +1,27 @@
+# Build
+build/
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+*.xcworkspace
+*.xcuserdata
+
+# Dependencies
+ui/node_modules/
+
+# JUCE
+libs/juce/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+ui/dist/

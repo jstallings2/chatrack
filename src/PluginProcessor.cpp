@@ -12,6 +12,33 @@ ChatrackAudioProcessor::ChatrackAudioProcessor()
       rackController(rackProcessor, actionHistory, apvts),
       llmService(std::make_unique<CloudLLMProvider>())
 {
+    // Load saved API key on startup
+    loadSavedApiKey();
+}
+
+void ChatrackAudioProcessor::loadSavedApiKey()
+{
+    auto configFile = juce::File::getSpecialLocation(
+        juce::File::userApplicationDataDirectory)
+        .getChildFile("Chatrack")
+        .getChildFile("config.json");
+    
+    if (configFile.existsAsFile())
+    {
+        auto json = juce::JSON::parse(configFile.loadFileAsString());
+        if (auto* obj = json.getDynamicObject())
+        {
+            juce::String apiKey = obj->getProperty("apiKey").toString();
+            if (apiKey.isNotEmpty())
+            {
+                if (auto* cloudProvider = dynamic_cast<CloudLLMProvider*>(llmService.get()))
+                {
+                    cloudProvider->setApiKey(apiKey);
+                    DBG("Loaded saved API key");
+                }
+            }
+        }
+    }
 }
 
 ChatrackAudioProcessor::~ChatrackAudioProcessor()

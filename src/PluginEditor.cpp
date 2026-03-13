@@ -187,10 +187,15 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                         }
                         actionCard->setProperty("controls", controls);
                         
+                        // Convert to JSON string for proper serialization
+                        juce::String jsonResponse = juce::JSON::toString(juce::var(actionCard.get()));
+                        DBG("Action card response: " << jsonResponse);
+                        
                         // Emit action card event
                         webComponent->emitEventIfBrowserIsVisible("actionCardReady", juce::var(actionCard.get()));
                         
-                        complete(juce::var(actionCard.get()));
+                        // Return the parsed var (juce will serialize it properly)
+                        complete(juce::JSON::parse(jsonResponse));
                     }
                     else
                     {

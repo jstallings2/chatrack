@@ -51,6 +51,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void loadSavedApiKey();
 
     juce::AudioProcessorValueTreeState apvts;
     RackProcessor rackProcessor;

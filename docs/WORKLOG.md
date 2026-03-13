@@ -6,7 +6,7 @@
 
 Built a working proof-of-concept of Chatrack, a conversational mixing assistant audio plugin.
 
-![Chatrack v1 Screenshot](./assets/chatrack-v1-screenshot.png)
+![Chatrack UI v1](./assets/chatrack-ui-v1.png)
 
 #### Architecture Implemented
 
@@ -41,6 +41,9 @@ Built a working proof-of-concept of Chatrack, a conversational mixing assistant 
    - Model explains what it's doing
    - Shows parameter changes inline
    - Thoughts/reasoning visible to user
+   
+   *UI Inspiration (Cursor):*
+   ![Cursor UI Inspiration](./assets/cursor-ui-inspiration.png)
 
 2. **Multi-level Undo** - Ctrl+Z style undo for individual parameter tweaks
    - Track each knob change in ActionHistory

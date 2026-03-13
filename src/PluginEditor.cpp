@@ -61,6 +61,9 @@ void ChatrackAudioProcessorEditor::setupWebView()
         .withNativeFunction("loadApiKey", [this](const auto& args, auto complete) {
             handleLoadApiKey(args, std::move(complete));
         })
+        .withNativeFunction("bypassAction", [this](const auto& args, auto complete) {
+            handleBypassAction(args, std::move(complete));
+        })
         .withResourceProvider([this](const auto& url) {
             return getResource(url);
         }, juce::URL{LOCAL_DEV_SERVER_URL}.getOrigin());
@@ -171,11 +174,19 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                         // Build action card response
                         juce::DynamicObject::Ptr actionCard = new juce::DynamicObject();
                         actionCard->setProperty("title", result.title);
-                        actionCard->setProperty("summary", result.summary);
                         actionCard->setProperty("intentId", result.intentId);
                         
+                        // Convert StringArray to var array for summary
+                        juce::Array<juce::var> summaryArr;
+                        for (const auto& bullet : result.summary)
+                            summaryArr.add(bullet);
+                        actionCard->setProperty("summary", summaryArr);
+                        
+                        DBG("Action card intentId: " << result.intentId);
+                        
+                        // Use controls from the resolved recipe, not the LLM result
                         juce::Array<juce::var> controls;
-                        for (const auto& control : result.controls)
+                        for (const auto& control : actions.controls)
                         {
                             juce::DynamicObject::Ptr ctrl = new juce::DynamicObject();
                             ctrl->setProperty("id", control.id);
@@ -186,6 +197,8 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                             controls.add(juce::var(ctrl.get()));
                         }
                         actionCard->setProperty("controls", controls);
+                        
+                        DBG("Built action card with " << actions.controls.size() << " controls");
                         
                         // Convert to JSON string for proper serialization
                         juce::String jsonResponse = juce::JSON::toString(juce::var(actionCard.get()));
@@ -244,11 +257,16 @@ void ChatrackAudioProcessorEditor::handleUndo(
 {
     juce::ignoreUnused(args);
     
+    DBG("handleUndo called, canUndo: " << (processorRef.getActionHistory().canUndo() ? "yes" : "no"));
+    
     bool success = processorRef.getActionHistory().undo(
         [this](const juce::String& paramId, float value) {
+            DBG("Undo: reverting " << paramId << " to " << value);
             processorRef.getRackController().setParameterDirectly(paramId, value);
         }
     );
+    
+    DBG("handleUndo result: " << (success ? "success" : "failed"));
     
     complete(juce::var(success));
 }
@@ -338,6 +356,66 @@ void ChatrackAudioProcessorEditor::handleLoadApiKey(
     }
     
     complete(juce::var());
+}
+
+void ChatrackAudioProcessorEditor::handleBypassAction(
+    const juce::Array<juce::var>& args,
+    juce::WebBrowserComponent::NativeFunctionCompletion complete)
+{
+    if (args.size() < 2)
+    {
+        DBG("Bypass: not enough args");
+        complete(juce::var(false));
+        return;
+    }
+    
+    juce::String intentId = args[0].toString();
+    bool bypass = static_cast<bool>(args[1]);
+    
+    DBG("Bypass action: intentId='" << intentId << "' bypass=" << (bypass ? "true" : "false"));
+    
+    // Get the recipe to find which processor to bypass
+    const auto* recipe = processorRef.getRecipeEngine().getRecipe(intentId);
+    if (recipe == nullptr)
+    {
+        DBG("Bypass: recipe not found for intentId: " << intentId);
+        complete(juce::var(false));
+        return;
+    }
+    
+    DBG("Bypass: found recipe, processor=" << recipe->processor);
+    
+    // Find ALL enabled parameters in the recipe and toggle them
+    juce::StringArray enabledParams;
+    for (const auto& [paramId, value] : recipe->defaults)
+    {
+        DBG("Bypass: checking param " << paramId);
+        if (paramId.endsWith(".enabled"))
+        {
+            enabledParams.add(paramId);
+        }
+    }
+    
+    if (enabledParams.isEmpty())
+    {
+        DBG("Bypass: no enabled params found in recipe defaults");
+        // Fall back to processor-level enable
+        if (recipe->processor == "compressor")
+            enabledParams.add("comp.enabled");
+        else if (recipe->processor == "saturation")
+            enabledParams.add("sat.enabled");
+        else if (recipe->processor == "stereo")
+            enabledParams.add("stereo.enabled");
+    }
+    
+    float enabledValue = bypass ? 0.0f : 1.0f;
+    for (const auto& param : enabledParams)
+    {
+        DBG("Bypass: setting " << param << " to " << enabledValue);
+        processorRef.getRackController().setParameterDirectly(param, enabledValue);
+    }
+    
+    complete(juce::var(true));
 }
 
 void ChatrackAudioProcessorEditor::paint(juce::Graphics& g)

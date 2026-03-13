@@ -35,7 +35,12 @@ void RackController::setParameterDirectly(const juce::String& paramId, float val
 {
     if (auto* param = apvts.getParameter(paramId))
     {
+        DBG("Setting parameter " << paramId << " to " << value << " (normalized: " << param->convertTo0to1(value) << ")");
         param->setValueNotifyingHost(param->convertTo0to1(value));
+    }
+    else
+    {
+        DBG("WARNING: Parameter not found: " << paramId);
     }
 }
 

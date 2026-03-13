@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Check, Undo2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Power, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Juce from '../juce/javascript/index.js';
 import ParameterKnob from './ParameterKnob';
 
-const undoLastAction = Juce.getNativeFunction("undoLastAction");
 const setParameter = Juce.getNativeFunction("setParameter");
+const bypassAction = Juce.getNativeFunction("bypassAction");
 
 function ActionCard({ data }) {
   const [expanded, setExpanded] = useState(false);
+  const [bypassed, setBypassed] = useState(false);
   const [paramValues, setParamValues] = useState(() => {
     const values = {};
     if (data.controls) {
@@ -18,8 +19,14 @@ function ActionCard({ data }) {
     return values;
   });
   
-  const handleUndo = async () => {
-    await undoLastAction();
+  const handleBypass = async () => {
+    const newBypassed = !bypassed;
+    console.log('Bypass clicked, data:', data);
+    console.log('intentId:', data.intentId);
+    console.log('newBypassed:', newBypassed);
+    setBypassed(newBypassed);
+    const result = await bypassAction(data.intentId, newBypassed);
+    console.log('Bypass result:', result);
   };
   
   const handleParamChange = async (paramId, value) => {
@@ -59,11 +66,15 @@ function ActionCard({ data }) {
       {/* Action buttons */}
       <div className="px-4 py-2 flex items-center gap-2 border-t border-chatrack-border">
         <button
-          onClick={handleUndo}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-chatrack-text-muted hover:text-chatrack-text bg-chatrack-surface-light hover:bg-chatrack-border rounded transition-colors"
+          onClick={handleBypass}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
+            bypassed 
+              ? 'bg-chatrack-accent/20 text-chatrack-accent border border-chatrack-accent/50' 
+              : 'text-chatrack-text-muted hover:text-chatrack-text bg-chatrack-surface-light hover:bg-chatrack-border'
+          }`}
         >
-          <Undo2 size={14} />
-          Undo
+          <Power size={14} />
+          {bypassed ? 'Bypassed' : 'Bypass'}
         </button>
         
         {controls && controls.length > 0 && (

@@ -49,6 +49,8 @@ private:
                           juce::WebBrowserComponent::NativeFunctionCompletion complete);
     void handleLoadApiKey(const juce::Array<juce::var>& args,
                           juce::WebBrowserComponent::NativeFunctionCompletion complete);
+    void handleBypassAction(const juce::Array<juce::var>& args,
+                            juce::WebBrowserComponent::NativeFunctionCompletion complete);
 
     ChatrackAudioProcessor& processorRef;
     std::unique_ptr<ChatrackWebView> webComponent;

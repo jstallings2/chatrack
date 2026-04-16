@@ -1,10 +1,24 @@
-# Chatrack
+# Chatrack — Real-Time C++ Audio Plugin with LLM-Driven Control
 
-A conversational mixing assistant plugin that translates natural language into mixing actions. **"Cursor for mixing."**
+Chatrack is a C++ audio plugin (JUCE) that combines real-time audio processing with a natural language interface. It translates user intent into parameter changes across a DSP processing chain, while maintaining low-latency and thread-safe operation.
 
-## Overview
+## Key Technical Highlights
 
-Chatrack is a JUCE audio plugin (AU/VST3) with an embedded WebView chat interface. You describe what you want to change about the sound in plain English, and Chatrack interprets your intent, selects the appropriate mixing tools, and applies parameter changes—all reversible and adjustable.
+- **Real-time C++ system (JUCE)** with low-latency audio processing constraints  
+- **Thread-safe architecture** separating audio processing and UI/LLM interaction  
+- **Lock-free parameter updates** between control layer and DSP chain  
+- **Modular DSP pipeline** (EQ, compression, saturation, stereo processing)  
+- **C++ ↔ JavaScript bridge** via embedded WebView (React UI)  
+- **LLM-driven control layer** translating natural language into deterministic parameter updates  
+
+## Architecture Overview
+
+- DSP Chain: Real-time audio processing (EQ → Compressor → Saturation → Width)  
+- Control Layer: Maps intent → parameter changes (RecipeEngine)  
+- Interface Layer: WebView UI communicates with C++ backend  
+- Threading: Audio thread isolated from UI + network operations  
+
+> Note: Designed with emphasis on real-time safety, separation of concerns, and extensibility.
 
 ### Example
 

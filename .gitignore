@@ -1,10 +1,11 @@
 # Build
 build/
+build-makefiles/
 cmake-build-*/
+compile_commands.json
 
 # IDE
 .idea/
-.vscode/
 *.xcworkspace
 *.xcuserdata
 

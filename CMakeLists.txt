@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
+
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS build architectures")
+endif()
 project(Chatrack VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)

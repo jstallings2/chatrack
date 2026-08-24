@@ -12,9 +12,6 @@ compile_commands.json
 # Dependencies
 ui/node_modules/
 
-# JUCE
-libs/juce/
-
 # OS
 .DS_Store
 Thumbs.db

@@ -4,11 +4,15 @@ void ActionHistory::pushSnapshot(
     const juce::String& actionId,
     const juce::String& intentId,
     const std::map<juce::String, float>& previousValues,
-    const std::map<juce::String, float>& newValues)
+    const std::map<juce::String, float>& newValues,
+    float magnitude,
+    const juce::String& title)
 {
     UndoSnapshot snapshot;
     snapshot.actionId = actionId;
     snapshot.intentId = intentId;
+    snapshot.magnitude = magnitude;
+    snapshot.title = title;
     snapshot.previousValues = previousValues;
     snapshot.newValues = newValues;
     

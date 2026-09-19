@@ -16,6 +16,15 @@ ChatrackAudioProcessor::ChatrackAudioProcessor()
     loadSavedApiKey();
 }
 
+void ChatrackAudioProcessor::recordConversationTurn(const juce::String& role,
+                                                    const juce::String& content)
+{
+    conversationMessages.push_back({ role, content });
+
+    while (conversationMessages.size() > MAX_CONVERSATION_TURNS)
+        conversationMessages.erase(conversationMessages.begin());
+}
+
 void ChatrackAudioProcessor::loadSavedApiKey()
 {
     auto configFile = juce::File::getSpecialLocation(

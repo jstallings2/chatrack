@@ -31,18 +31,18 @@ void RecipeEngine::initializeRecipes()
         "Brighten",
         "eq",
         {
-            {"eq.band3.freq", 10000.0f},
-            {"eq.band3.gain", 2.0f},
+            {"eq.band3.freq", 7000.0f},
+            {"eq.band3.gain", 5.0f},
             {"eq.band3.q", 0.7f},
             {"eq.band3.enabled", 1.0f}
         },
         {
-            {"eq.band3.freq", {8000.0f, 16000.0f}},
-            {"eq.band3.gain", {0.0f, 6.0f}},
+            {"eq.band3.freq", {4000.0f, 16000.0f}},
+            {"eq.band3.gain", {0.0f, 8.0f}},
             {"eq.band3.q", {0.3f, 1.5f}}
         },
         {"eq.band3.gain"},
-        {"Added high shelf boost", "Enhanced air and presence"}
+        {"High shelf from ~7 kHz", "Should be obvious on bypass"}
     };
     
     recipes["add_warmth"] = {

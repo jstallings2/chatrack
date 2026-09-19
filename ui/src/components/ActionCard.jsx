@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, Power, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Juce from '../juce/javascript/index.js';
 import ParameterKnob from './ParameterKnob';
@@ -7,7 +7,7 @@ const setParameter = Juce.getNativeFunction("setParameter");
 const bypassAction = Juce.getNativeFunction("bypassAction");
 
 function ActionCard({ data }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!!data.edited);
   const [bypassed, setBypassed] = useState(false);
   const [paramValues, setParamValues] = useState(() => {
     const values = {};
@@ -18,6 +18,18 @@ function ActionCard({ data }) {
     }
     return values;
   });
+
+  useEffect(() => {
+    const values = {};
+    if (data.controls) {
+      data.controls.forEach(ctrl => {
+        values[ctrl.id] = ctrl.value;
+      });
+    }
+    setParamValues(values);
+    if (data.edited)
+      setExpanded(true);
+  }, [data.magnitude, data.intentId, data.edited]);
   
   const handleBypass = async () => {
     const newBypassed = !bypassed;
@@ -47,8 +59,13 @@ function ActionCard({ data }) {
   return (
     <div className="max-w-[85%] bg-chatrack-surface border border-chatrack-border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-chatrack-border">
+      <div className="px-4 py-3 border-b border-chatrack-border flex items-center justify-between gap-2">
         <h3 className="font-medium text-chatrack-text">{title || 'Action'}</h3>
+        {data.edited && (
+          <span className="text-xs text-chatrack-accent px-2 py-0.5 bg-chatrack-accent/15 rounded">
+            Updated
+          </span>
+        )}
       </div>
       
       {/* Summary */}

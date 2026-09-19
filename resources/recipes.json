@@ -20,18 +20,18 @@
     "label": "Brighten",
     "processor": "eq",
     "defaults": {
-      "eq.band3.freq": 10000,
-      "eq.band3.gain": 2.0,
+      "eq.band3.freq": 7000,
+      "eq.band3.gain": 5.0,
       "eq.band3.q": 0.7,
       "eq.band3.enabled": 1
     },
     "bounds": {
-      "eq.band3.freq": [8000, 16000],
-      "eq.band3.gain": [0, 6],
+      "eq.band3.freq": [4000, 16000],
+      "eq.band3.gain": [0, 8],
       "eq.band3.q": [0.3, 1.5]
     },
     "magnitude_scales": ["eq.band3.gain"],
-    "summary": ["Added high shelf boost", "Enhanced air and presence"]
+    "summary": ["High shelf from ~7 kHz", "Should be obvious on bypass"]
   },
   "add_warmth": {
     "label": "Add Warmth",

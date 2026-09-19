@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 #include <functional>
+#include <map>
 #include <vector>
 
 struct ConversationMessage
@@ -10,10 +11,19 @@ struct ConversationMessage
     juce::String content;
 };
 
+struct LastAppliedAction
+{
+    juce::String intentId;
+    float magnitude = 0.6f;
+    juce::String title;
+    bool valid = false;
+};
+
 struct ConversationContext
 {
     std::vector<ConversationMessage> messages;
     std::map<juce::String, float> currentParameters;
+    LastAppliedAction lastAction;
 };
 
 struct ControlInfo
@@ -35,6 +45,7 @@ struct IntentResult
     std::vector<ControlInfo> controls;
     juce::String errorMessage;
     std::map<juce::String, float> parameterOverrides;
+    float confidence = 0.9f;
 };
 
 class LLMService

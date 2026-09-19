@@ -66,6 +66,13 @@ IntentResult IntentParser::parseContent(const juce::String& jsonContent) const
         
         if (result.magnitude <= 0.0f || result.magnitude > 1.0f)
             result.magnitude = 0.6f;
+
+        if (obj->hasProperty("confidence"))
+        {
+            result.confidence = static_cast<float>(obj->getProperty("confidence"));
+            if (result.confidence <= 0.0f || result.confidence > 1.0f)
+                result.confidence = 0.9f;
+        }
         
         result.title = obj->getProperty("title").toString();
         if (result.title.isEmpty())

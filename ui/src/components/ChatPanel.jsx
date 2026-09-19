@@ -1,12 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send } from 'lucide-react';
 import ActionCard from './ActionCard';
 import ThinkingIndicator from './ThinkingIndicator';
+import RackBar from './RackBar';
 
-function ChatPanel({ messages, isThinking, onSendMessage }) {
+function ChatPanel({
+  messages,
+  isThinking,
+  onSendMessage,
+  masterBypassed,
+  onToggleMasterBypass,
+}) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const cardRefs = useRef({});
+
+  const rackSlots = useMemo(() => {
+    const byIntent = new Map();
+    for (const msg of messages) {
+      if (msg.type !== 'assistant' || !msg.content?.intentId)
+        continue;
+      byIntent.set(msg.content.intentId, {
+        intentId: msg.content.intentId,
+        title: msg.content.title || msg.content.intentId,
+      });
+    }
+    return [...byIntent.values()];
+  }, [messages]);
+
+  const jumpToCard = (intentId) => {
+    cardRefs.current[intentId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,6 +58,12 @@ function ChatPanel({ messages, isThinking, onSendMessage }) {
   
   return (
     <div className="h-full flex flex-col">
+      <RackBar
+        slots={rackSlots}
+        masterBypassed={masterBypassed}
+        onToggleMaster={onToggleMasterBypass}
+        onSelect={jumpToCard}
+      />
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
@@ -73,7 +104,13 @@ function ChatPanel({ messages, isThinking, onSendMessage }) {
             )}
             
             {msg.type === 'assistant' && (
-              <div className="flex justify-start">
+              <div
+                className="flex justify-start"
+                ref={(el) => {
+                  if (msg.content?.intentId)
+                    cardRefs.current[msg.content.intentId] = el;
+                }}
+              >
                 <ActionCard data={msg.content} />
               </div>
             )}

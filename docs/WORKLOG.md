@@ -111,6 +111,9 @@ chatrack/
 ### Session Notes
 
 - Plugin loads in AudioPluginHost via `chatrack.filtergraph`
+- After a plugin build, relaunch the host: `./scripts/run-host.sh` (or `cmake --build build --target run_host --config Debug`)
+- Master A/B bypasses the whole rack. It does not gain-match yet.
+- Test loop: `resources/test-loop.wav` — load it in AUAudioFilePlayer once and File → Save if the player is empty
 - Dev server: `cd ui && npm run dev` (localhost:5173)
 - Build: `cmake --build build --config Debug`
 - Debug logs visible in Console.app (search for "Chatrack" or "AudioPluginHost")

@@ -49,6 +49,9 @@ public:
     RackController& getRackController() { return rackController; }
     LLMService& getLLMService() { return *llmService; }
 
+    void recordConversationTurn(const juce::String& role, const juce::String& content);
+    const std::vector<ConversationMessage>& getConversationMessages() const { return conversationMessages; }
+
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void loadSavedApiKey();
@@ -59,6 +62,9 @@ private:
     ActionHistory actionHistory;
     RackController rackController;
     std::unique_ptr<LLMService> llmService;
+    std::vector<ConversationMessage> conversationMessages;
+
+    static constexpr size_t MAX_CONVERSATION_TURNS = 8;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChatrackAudioProcessor)
 };

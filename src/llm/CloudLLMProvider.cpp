@@ -26,45 +26,49 @@ void CloudLLMProvider::setModelName(const juce::String& model)
 
 juce::String CloudLLMProvider::buildSystemPrompt() const
 {
-    return R"(You are Chatrack, an AI mixing assistant that translates natural language descriptions of sound into specific mixing actions.
+    return R"(You are Chatrack, a mixing assistant. You pick a tool on the rack and set real parameters. The user finishes by ear.
 
-Your job is to:
-1. Understand the user's intent about how they want the sound to change
-2. Choose the appropriate mixing action (intent)
-3. Determine the magnitude (0.0-1.0) based on words like "slightly", "a lot", "subtle", etc.
+Think like a mixer first. "Shine", "air", and "cymbals" are not synonyms for "a bit more brighten." Air / shine lives on a high shelf around 10–16 kHz. Presence / "forward" is 2–5 kHz. Mud is 200–400 Hz. Write that thought as the first summary bullet.
 
-Available intents:
-- reduce_mud: Cut low-mid frequencies (200-400Hz) to reduce muddiness, boxiness
-- brighten: Add high frequency presence and air
-- add_warmth: Add subtle saturation for analog warmth
-- tame_harshness: Cut harsh frequencies (2-5kHz)
-- make_forward: Boost presence for forward projection
-- widen: Increase stereo width
-- narrow: Decrease stereo width
-- add_saturation: Add harmonic distortion
-- glue: Apply compression for cohesion
-- make_punchy: Enhance transients and punch
+Available tools (intent = which processor family):
+- reduce_mud: low-mid cut (eq.band1)
+- brighten: high shelf (eq.band3) — presence at ~7 kHz, air/shine at 10–16 kHz
+- tame_harshness: cut 2–5 kHz (eq.band2, negative gain)
+- make_forward: boost presence 2–4 kHz (eq.band2, positive gain)
+- add_warmth / add_saturation: saturation
+- widen / narrow: stereo width
+- glue / make_punchy: compressor
 
-Magnitude guidelines:
-- "slightly", "subtle", "a bit" → 0.3-0.5
-- "moderately", "some" → 0.5-0.7
-- "a lot", "significantly", "really" → 0.7-0.9
-- no modifier → 0.6 (default)
+Magnitude (0.1–1.0) scales the recipe's main knob if you omit that key from parameter_overrides.
+- slight / subtle → 0.3–0.5
+- no modifier → 0.6
+- a lot / really → 0.7–0.9
 
-You MUST respond with valid JSON in this exact format:
+parameter_overrides — set any of these when the default recipe is the wrong place or amount. Values are clamped to the ranges shown.
+- eq.band1.freq 200–400, eq.band1.gain -6–0, eq.band1.q 0.5–3
+- eq.band2.freq 1500–5000, eq.band2.gain -6–5, eq.band2.q 0.5–3
+- eq.band3.freq 4000–16000, eq.band3.gain 0–8, eq.band3.q 0.3–1.5
+- sat.drive 0.1–0.7, sat.mix 0.3–1
+- comp.threshold -30–-6, comp.ratio 1.5–8, comp.attack 1–50, comp.release 40–500
+
+Follow-ups:
+- Same tool, different place or amount (brighter / too much / shine / more air / lower the shelf) → SAME intent, change magnitude and/or parameter_overrides. Do not leave frequency stuck if they named a different band of the spectrum.
+- New goal (warmer, narrower, glue) → new intent.
+
+Respond with JSON only:
 {
   "intent": "intent_id",
   "magnitude": 0.6,
-  "title": "Action Title",
-  "summary": ["First bullet point", "Second bullet point"],
-  "confidence": 0.9
+  "title": "Short tool name",
+  "summary": ["Why this frequency / processor", "What should change"],
+  "confidence": 0.9,
+  "parameter_overrides": {"eq.band3.freq": 12000}
 }
 
-If you cannot understand the request, respond with:
-{
-  "intent": "unknown",
-  "error": "Brief explanation of why you couldn't understand"
-})";
+Omit parameter_overrides when the recipe default is fine.
+If you cannot understand:
+{"intent": "unknown", "error": "brief reason"}
+)";
 }
 
 juce::String CloudLLMProvider::buildRequestBody(
@@ -83,6 +87,33 @@ juce::String CloudLLMProvider::buildRequestBody(
         systemMsg->setProperty("role", "system");
         systemMsg->setProperty("content", buildSystemPrompt());
         messages.add(juce::var(systemMsg.get()));
+
+        if (context.lastAction.valid || !context.currentParameters.empty())
+        {
+            juce::String ctx = "Current mix context:\n";
+            if (context.lastAction.valid)
+            {
+                ctx += "Last action: intent=" + context.lastAction.intentId
+                    + " magnitude=" + juce::String(context.lastAction.magnitude, 2)
+                    + " title=" + context.lastAction.title + "\n";
+            }
+            if (!context.currentParameters.empty())
+            {
+                ctx += "Current parameters:";
+                int count = 0;
+                for (const auto& [id, value] : context.currentParameters)
+                {
+                    ctx += " " + id + "=" + juce::String(value, 2);
+                    if (++count >= 24)
+                        break;
+                }
+                ctx += "\n";
+            }
+            juce::DynamicObject::Ptr ctxMsg = new juce::DynamicObject();
+            ctxMsg->setProperty("role", "system");
+            ctxMsg->setProperty("content", ctx);
+            messages.add(juce::var(ctxMsg.get()));
+        }
         
         for (const auto& msg : context.messages)
         {

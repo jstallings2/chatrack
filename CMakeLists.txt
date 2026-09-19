@@ -24,6 +24,7 @@ juce_add_plugin(Chatrack
 
 target_sources(Chatrack
     PRIVATE
+        src/BuildInfo.cpp
         src/PluginProcessor.cpp
         src/PluginEditor.cpp
         src/dsp/RackProcessor.cpp
@@ -37,6 +38,7 @@ target_sources(Chatrack
         src/engine/RackController.cpp
         src/llm/CloudLLMProvider.cpp
         src/llm/IntentParser.cpp
+        src/SessionLog.cpp
 )
 
 target_compile_definitions(Chatrack
@@ -46,7 +48,24 @@ target_compile_definitions(Chatrack
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_USE_CURL=1
         JUCE_DISPLAY_SPLASH_SCREEN=0
+    PRIVATE
+        CHATRACK_VERSION="${PROJECT_VERSION}"
+        CHATRACK_LOG_DIR="${CMAKE_SOURCE_DIR}/logs"
 )
+
+# Recompile BuildInfo.cpp every build so the header stamp is trustworthy.
+add_custom_target(chatrack_touch_buildinfo
+    COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_SOURCE_DIR}/src/BuildInfo.cpp"
+    COMMENT "Refreshing build stamp"
+)
+add_dependencies(Chatrack chatrack_touch_buildinfo)
+
+add_custom_target(run_host
+    COMMAND "${CMAKE_SOURCE_DIR}/scripts/launch-host.sh"
+    COMMENT "Open AudioPluginHost with chatrack.filtergraph"
+    USES_TERMINAL
+)
+add_dependencies(run_host Chatrack_AU Chatrack_VST3)
 
 target_include_directories(Chatrack
     PRIVATE

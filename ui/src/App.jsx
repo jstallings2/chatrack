@@ -13,12 +13,17 @@ console.log("JUCE integration check:", {
 
 const sendChatMessage = Juce.getNativeFunction("sendChatMessage");
 const loadApiKey = Juce.getNativeFunction("loadApiKey");
+const getBuildInfo = Juce.getNativeFunction("getBuildInfo");
+const setMasterBypass = Juce.getNativeFunction("setMasterBypass");
+const getMasterBypass = Juce.getNativeFunction("getMasterBypass");
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState(null);
+  const [buildLabel, setBuildLabel] = useState(null);
+  const [masterBypassed, setMasterBypassed] = useState(false);
   
   useEffect(() => {
     const thinkingHandle = Juce.addEventListener("thinkingStatus", (status) => {
@@ -26,12 +31,32 @@ function App() {
     });
     
     const actionCardHandle = Juce.addEventListener("actionCardReady", (card) => {
-      setMessages(prev => [...prev, { type: 'assistant', content: card }]);
+      setMessages(prev => {
+        if (card?.edited) {
+          const lastAssistant = [...prev].reverse().findIndex(m => m.type === 'assistant');
+          if (lastAssistant !== -1) {
+            const index = prev.length - 1 - lastAssistant;
+            return prev.map((m, i) =>
+              i === index ? { type: 'assistant', content: card } : m
+            );
+          }
+        }
+        return [...prev, { type: 'assistant', content: card }];
+      });
     });
     
     loadApiKey().then((maskedKey) => {
       setApiKeyStatus(maskedKey || null);
     });
+
+    getBuildInfo().then((info) => {
+      if (info && info.label)
+        setBuildLabel(info.label);
+    }).catch(() => {});
+
+    getMasterBypass().then((on) => {
+      setMasterBypassed(!!on);
+    }).catch(() => {});
     
     return () => {
       Juce.removeEventListener(thinkingHandle);
@@ -67,6 +92,17 @@ function App() {
   const handleApiKeyUpdated = useCallback((maskedKey) => {
     setApiKeyStatus(maskedKey);
   }, []);
+
+  const handleToggleMasterBypass = useCallback(async () => {
+    const next = !masterBypassed;
+    setMasterBypassed(next);
+    try {
+      await setMasterBypass(next);
+    } catch (error) {
+      console.error('setMasterBypass failed', error);
+      setMasterBypassed(!next);
+    }
+  }, [masterBypassed]);
   
   return (
     <div className="h-full flex flex-col bg-chatrack-bg">
@@ -77,6 +113,14 @@ function App() {
           <span className="text-xs text-chatrack-text-muted px-2 py-0.5 bg-chatrack-surface-light rounded">
             Mix Assistant
           </span>
+          {buildLabel && (
+            <span
+              className="text-[10px] font-mono text-chatrack-text-muted"
+              title="C++ binary stamp — if this did not change, Ableton is still on the old AU"
+            >
+              {buildLabel}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {apiKeyStatus && (
@@ -100,6 +144,8 @@ function App() {
           messages={messages}
           isThinking={isThinking}
           onSendMessage={handleSendMessage}
+          masterBypassed={masterBypassed}
+          onToggleMasterBypass={handleToggleMasterBypass}
         />
       </main>
       

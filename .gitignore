@@ -21,6 +21,10 @@ Thumbs.db
 
 # Logs
 *.log
+logs/*.jsonl
+logs/latest.md
+logs/*.md
+!logs/README.md
 
 # Temporary files
 *.tmp

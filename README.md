@@ -105,7 +105,7 @@ This builds and zips the UI into `resources/` for embedding in release builds.
 1. Open the plugin in your DAW
 2. Click the Settings (gear) icon
 3. Enter your OpenAI API key
-4. The key is stored locally in `~/Library/Application Support/Chatrack/config.json`
+4. The key is stored locally in `~/Library/Chatrack/config.json`
 
 ## Architecture
 

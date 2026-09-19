@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 #include "BuildInfo.h"
 #include "SessionLog.h"
+#include "llm/IntentParser.h"
 
 #include <cmath>
 
@@ -79,6 +80,29 @@ namespace
             result.magnitude = juce::jlimit(0.1f, 1.0f, lastAction.magnitude + 0.25f);
         else if (less && result.magnitude >= lastAction.magnitude - 0.05f)
             result.magnitude = juce::jlimit(0.1f, 1.0f, lastAction.magnitude - 0.2f);
+    }
+
+    void maybeKeepBrightenForAirFollowUp(IntentResult& result,
+                                         const juce::String& userMessage,
+                                         const LastAppliedAction& lastAction)
+    {
+        if (!lastAction.valid || lastAction.intentId != "brighten")
+            return;
+        if (result.intentId != "reduce_mud")
+            return;
+        if (IntentParser::mentionsMudRequest(userMessage))
+            return;
+        if (!IntentParser::mentionsHighShelfTarget(userMessage))
+            return;
+
+        result.success = true;
+        result.intentId = "brighten";
+        result.errorMessage.clear();
+        if (result.title.isEmpty()
+            || result.title.containsIgnoreCase("mud")
+            || result.title.containsIgnoreCase("low"))
+            result.title = lastAction.title.isNotEmpty() ? lastAction.title
+                                                        : juce::String("High Shelf Boost");
     }
 }
 
@@ -266,7 +290,12 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                     webComponent->emitEventIfBrowserIsVisible("thinkingStatus", juce::var(false));
 
                     maybeApplyFollowUpFallback(result, userMessage, context.lastAction);
-                    
+                    maybeKeepBrightenForAirFollowUp(result, userMessage, context.lastAction);
+                    IntentParser::applyOverrideFallbacks(result, userMessage);
+
+                    DBG("Parsed intent JSON: "
+                        << juce::JSON::toString(juce::var(IntentParser::toLogObject(result).get()), true));
+
                     if (result.success)
                     {
                         auto actions = processorRef.getRecipeEngine().resolveIntentWithOverrides(
@@ -334,6 +363,12 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                                 && result.parameterOverrides.empty();
                             ev->setProperty("noop", noop);
                             ev->setProperty("controls", controls);
+                            ev->setProperty("parsed", juce::var(IntentParser::toLogObject(result).get()));
+                            juce::DynamicObject::Ptr overrides = new juce::DynamicObject();
+                            for (const auto& [key, value] : result.parameterOverrides)
+                                overrides->setProperty(key, value);
+                            ev->setProperty("parameter_overrides", juce::var(overrides.get()));
+                            ev->setProperty("override_fallback", result.overrideFallback);
                             sessionLogEvent("chat_out", ev);
 
                             juce::String md;
@@ -344,6 +379,15 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                                << (noop ? "  noop" : "") << "\n";
                             if (result.title.isNotEmpty())
                                 md << result.title << "\n";
+                            if (result.parameterOverrides.empty())
+                                md << "overrides: (none)\n";
+                            else
+                            {
+                                md << "overrides:\n";
+                                for (const auto& [key, value] : result.parameterOverrides)
+                                    md << "- " << key << " = " << juce::String(value, 2)
+                                       << (result.overrideFallback ? "  (fallback)" : "") << "\n";
+                            }
                             for (const auto& control : actions.controls)
                                 md << "- " << control.id << " = " << juce::String(control.value, 2) << "\n";
                             sessionLogLine(md);

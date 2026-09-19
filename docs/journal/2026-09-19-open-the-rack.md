@@ -42,7 +42,8 @@ Same shelf, same gain, a new sentence. Or a chatbot essay instead of a tool.
 
 ## Open threads
 
+- Override path is in. Not calling it done — only shine/cymbals has been tried. Synthetic language sweep next.
 - Route A knobs-open / A/B still queued. Do not block on it.
 - Mix conversation / stems: seek, not a Chatrack branch.
-- Ears (band energy into context) after this is audible.
+- Ears (band energy into context) after this is audible. Scene-graph first pass: [`2026-09-19-elements-and-ears.md`](2026-09-19-elements-and-ears.md).
 - Master A/B does not gain-match. Dry is quieter than the processed rack, so bypass can read as “worse” for the wrong reason. Note it; not this slice.

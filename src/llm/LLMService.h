@@ -46,6 +46,7 @@ struct IntentResult
     juce::String errorMessage;
     std::map<juce::String, float> parameterOverrides;
     float confidence = 0.9f;
+    bool overrideFallback = false;
 };
 
 class LLMService

@@ -5,7 +5,7 @@ Journal entries go in `docs/journal/`. Technical sessions stay in `WORKLOG.md`.
 Stage-end essays go in `docs/essays/` when a stage's questions have actually changed.
 
 **Current stage:** 2 — Make it something you would open
-**Last updated:** 2026-09-19
+**Last updated:** 2026-09-19 (end of day)
 
 ---
 
@@ -59,14 +59,26 @@ Answer these before you start a feature, and again after you finish it. The delt
 
 ## This week
 
-Saturday 2026-09-19 is a work day. Next check-in is ~2026-09-26. Goal for that check-in: one thing you can *demo* that makes the plugin feel more like something you would open, plus a point of view on the parked ideas (not a DAW prototype).
+Saturday 2026-09-19 was a work day. Next check-in is ~2026-09-26. Goal for that check-in: one thing you can *demo* that makes the plugin feel more like something you would open, plus a point of view on the parked ideas (not a DAW prototype).
 
 Do not start Stage 3+ until the Stage 2 gate is true.
 
-1. **Open the rack** `A-now` — model may set real params (`parameter_overrides`), not only magnitude. Journal: [`2026-09-19-open-the-rack.md`](journal/2026-09-19-open-the-rack.md)
-2. **Tool surface** `A-now` — knobs open, A/B vs revert. [`.cursor/plans/route_a_tool_surface.plan.md`](../.cursor/plans/route_a_tool_surface.plan.md)
-3. **See / hear** `A-now` — meters / spectrum — next slice
-4. Mix-deconstruct conversation stays in `seek/tools/sonic-analysis`, not this plugin. Do not start `A-pro` plugin hosting.
+End-of-day briefing (what shipped, Route A/B, papers, next): [`docs/journal/2026-09-19-session-notes.md`](journal/2026-09-19-session-notes.md). Write the human piece from that; do not treat it as the post.
+
+### Landed today (not calling language V2 done)
+
+1. **Open the rack** `A-now` — follow-ups edit the same tool; `parameter_overrides` can move freq, not only magnitude; rack strip + master A/B (no gain-match). Journal: [`2026-09-19-open-the-rack.md`](journal/2026-09-19-open-the-rack.md). Still needs a wider host test than “shine / cymbals.”
+2. **Seek scene-graph** (not this repo) — `--mode scene` on one stereo file. Ears beat the graph (clap ≠ snare, hat ≠ shaker, no bass). Journal: [`2026-09-19-elements-and-ears.md`](journal/2026-09-19-elements-and-ears.md).
+
+### Next (tomorrow-shaped)
+
+1. **Synthetic language sweep** `A-now` — generate mix-language variants against known loops; log intent + override keys + freq. Only brighten/shine has been tried by hand. This is how we get confident enough to call language V2 done.
+2. **More host tests** `A-now` — mud, harsh, warmth, width. Same session, same card when it is a follow-up.
+3. **Tool surface** `A-now` — knobs open, A/B vs revert. [`.cursor/plans/route_a_tool_surface.plan.md`](../.cursor/plans/route_a_tool_surface.plan.md)
+4. **Seek prompt cleanup** (seek) — stop feeding `bass_weight` into scene mode; force clap/hat/shaker discriminations. Then re-listen the same loop.
+5. **See / hear** `A-now` — meters / spectrum — after the language tests, not instead of them.
+
+Mix-deconstruct stays in seek. Do not start `A-pro` plugin hosting. Do not inject scene JSON into the plugin yet. Do not start Demucs / a 4B model.
 
 Documentation:
 
@@ -74,6 +86,8 @@ Documentation:
 - [x] Fork: `docs/journal/2026-09-19-two-use-cases.md`
 - [x] Decision: `docs/journal/2026-09-19-picked-route-a.md` + [ADR-0001](adr/0001-route-a-tool-not-chat.md)
 - [x] Audience: `docs/journal/2026-09-19-who-is-this-for.md`
+- [x] Session briefing: `docs/journal/2026-09-19-session-notes.md`
+- [x] Research table: [`docs/research/PAPERS.md`](research/PAPERS.md)
 - [ ] Backfill PoC journal: `docs/journal/2026-03-12-poc.md`
 - [ ] Draft essay 0: *Should this exist?* — this decision belongs in it.
 
@@ -94,7 +108,8 @@ Captured 2026-09-19. Do not start these before the Stage 2 gate.
 | Ableton SDK / existing copilots | Stay where I already work | Research note, after the plugin is worth opening |
 | Product vs OSS vs paid | Someone saw a company in this | Identity question; journal it, don’t incorporate it |
 | Rack tool list (Logic-style names only) | See what is on the insert without opening cards | After follow-ups read as edits, not stacks |
-| Sensor surface for an LM (session-scale listening) | The real bet — reason about the mix, don’t map synonyms | After follow-ups are usable. Stage 4. Do not start from a paper |
+| Sensor surface for an LM (session-scale listening) | The real bet — reason about the mix, don’t map synonyms | Stage 4. Lab in seek. Read pile: [`docs/research/PAPERS.md`](research/PAPERS.md). Do not start from a paper. |
+| Granular “elements” inside one file (finer than Demucs) | “Air on the hats” needs a hat object, not a drums stem | Define element first. Prompt-conditioned localization is the cheap experiment. Journal: [`2026-09-19-elements-and-ears.md`](journal/2026-09-19-elements-and-ears.md) |
 
 ---
 

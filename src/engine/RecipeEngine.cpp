@@ -225,6 +225,7 @@ ResolvedRecipe RecipeEngine::resolveIntentWithOverrides(
         if (overrideIt != overrides.end())
         {
             value = overrideIt->second;
+            DBG("Recipe override " << paramId << " = " << value);
         }
         else
         {

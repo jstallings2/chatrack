@@ -46,5 +46,5 @@ If we spend a year on chat follow-ups and never give the model audio. If we jump
 
 - Finish follow-up polish (audible edit, not stack). Then stop and use it.
 - Stage 4 is this: analysis → language → reason. Not a bigger recipe list.
-- Pointers to read later, not build: Steinmetz + Reiss [ST-ITO](https://arxiv.org/abs/2410.21233) (ISMIR 2024), [Diff-MST](https://arxiv.org/abs/2407.08889), [LLM2Fx-Tools](https://arxiv.org/abs/2512.01559) (audio + tool calling for Fx chains), [SPHERE](https://arxiv.org/abs/2608.30559) (audio LM + mix params, Reiss on the author list). Steinmetz site: [christiansteinmetz.com](https://www.christiansteinmetz.com/).
+- Pointers to read later, not build: table in [`docs/research/PAPERS.md`](../research/PAPERS.md) (ST-ITO, Diff-MST, LLM2Fx-Tools, MixAssist, SPHERE, Demucs). Steinmetz site: [christiansteinmetz.com](https://www.christiansteinmetz.com/).
 - Session context without a new DAW still points at Ableton SDK / stems, plus listening. Two halves of the same problem.

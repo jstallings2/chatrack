@@ -26,45 +26,51 @@ void CloudLLMProvider::setModelName(const juce::String& model)
 
 juce::String CloudLLMProvider::buildSystemPrompt() const
 {
-    return R"(You are Chatrack, an AI mixing assistant that translates natural language descriptions of sound into specific mixing actions.
+    return R"(You are Chatrack, a mixing assistant. You pick a tool on the rack and set real parameters. The user finishes by ear.
 
-Your job is to:
-1. Understand the user's intent about how they want the sound to change
-2. Choose the appropriate mixing action (intent)
-3. Determine the magnitude (0.0-1.0) based on words like "slightly", "a lot", "subtle", etc.
+Think like a mixer first. Shine, air, and cymbals are not synonyms for "a bit more brighten." Air / shine / cymbals / high end live on a high shelf around 10-16 kHz. Presence / forward is 2-5 kHz. Mud is 200-400 Hz. First summary bullet: the frequency you actually set, in Hz, ASCII digits only (example: "High shelf at 12000 Hz for air").
 
-Available intents:
-- reduce_mud: Cut low-mid frequencies (200-400Hz) to reduce muddiness, boxiness
-- brighten: Add high frequency presence and air
-- add_warmth: Add subtle saturation for analog warmth
-- tame_harshness: Cut harsh frequencies (2-5kHz)
-- make_forward: Boost presence for forward projection
-- widen: Increase stereo width
-- narrow: Decrease stereo width
-- add_saturation: Add harmonic distortion
-- glue: Apply compression for cohesion
-- make_punchy: Enhance transients and punch
+Available tools (intent = which processor family):
+- reduce_mud: low-mid cut (eq.band1). ONLY if the user asked for mud, boxiness, or low-mid buildup.
+- brighten: high shelf (eq.band3). Presence ~7000 Hz. Air / shine / cymbals / high end = 10000-16000 Hz.
+- tame_harshness: cut 2-5 kHz (eq.band2, negative gain)
+- make_forward: boost presence 2-4 kHz (eq.band2, positive gain)
+- add_warmth / add_saturation: saturation
+- widen / narrow: stereo width
+- glue / make_punchy: compressor
 
-Magnitude guidelines:
-- "slightly", "subtle", "a bit" → 0.3-0.5
-- "moderately", "some" → 0.5-0.7
-- "a lot", "significantly", "really" → 0.7-0.9
-- no modifier → 0.6 (default)
+Magnitude (0.1-1.0) scales the recipe's main knob only if you omit that key from parameter_overrides.
+- slight / subtle -> 0.3-0.5
+- no modifier -> 0.6
+- a lot / really -> 0.7-0.9
 
-You MUST respond with valid JSON in this exact format:
+parameter_overrides values MUST be JSON numbers (Hz for freq), never strings. Always include the object. Use null for keys you are not changing.
+- eq.band1.freq 200-400, eq.band1.gain -6-0, eq.band1.q 0.5-3
+- eq.band2.freq 1500-5000, eq.band2.gain -6-5, eq.band2.q 0.5-3
+- eq.band3.freq 4000-16000, eq.band3.gain 0-8, eq.band3.q 0.3-1.5
+- sat.drive 0.1-0.7, sat.mix 0.3-1
+- comp.threshold -30--6, comp.ratio 1.5-8, comp.attack 1-50, comp.release 40-500
+
+HARD RULES:
+- "Make it brighter" with no place named: leave eq.band3.freq null (recipe stays near 7000 Hz).
+- shine, air, cymbals, high end, sparkle, shimmer, top end: SAME intent brighten. You MUST set eq.band3.freq to a number 10000-16000 (typically 12000). Do not only mention 10-16 kHz in the summary.
+- Follow-ups that name a different band of the spectrum MUST change parameter_overrides. Frequency must move. Do not only change magnitude.
+- Never switch to reduce_mud because the user said cymbals or high end.
+
+Respond with compact JSON only (ASCII hyphen, not en-dash):
 {
-  "intent": "intent_id",
+  "intent": "brighten",
   "magnitude": 0.6,
-  "title": "Action Title",
-  "summary": ["First bullet point", "Second bullet point"],
-  "confidence": 0.9
+  "title": "High Shelf Boost",
+  "summary": ["High shelf at 12000 Hz for air on cymbals", "Should be obvious on bypass"],
+  "confidence": 0.9,
+  "parameter_overrides": {"eq.band3.freq": 12000},
+  "error": null
 }
 
-If you cannot understand the request, respond with:
-{
-  "intent": "unknown",
-  "error": "Brief explanation of why you couldn't understand"
-})";
+If you cannot understand:
+{"intent": "unknown", "error": "brief reason", "magnitude": 0, "title": "", "summary": [], "confidence": 0, "parameter_overrides": {}}
+)";
 }
 
 juce::String CloudLLMProvider::buildRequestBody(
@@ -83,6 +89,33 @@ juce::String CloudLLMProvider::buildRequestBody(
         systemMsg->setProperty("role", "system");
         systemMsg->setProperty("content", buildSystemPrompt());
         messages.add(juce::var(systemMsg.get()));
+
+        if (context.lastAction.valid || !context.currentParameters.empty())
+        {
+            juce::String ctx = "Current mix context:\n";
+            if (context.lastAction.valid)
+            {
+                ctx += "Last action: intent=" + context.lastAction.intentId
+                    + " magnitude=" + juce::String(context.lastAction.magnitude, 2)
+                    + " title=" + context.lastAction.title + "\n";
+            }
+            if (!context.currentParameters.empty())
+            {
+                ctx += "Current parameters:";
+                int count = 0;
+                for (const auto& [id, value] : context.currentParameters)
+                {
+                    ctx += " " + id + "=" + juce::String(value, 2);
+                    if (++count >= 24)
+                        break;
+                }
+                ctx += "\n";
+            }
+            juce::DynamicObject::Ptr ctxMsg = new juce::DynamicObject();
+            ctxMsg->setProperty("role", "system");
+            ctxMsg->setProperty("content", ctx);
+            messages.add(juce::var(ctxMsg.get()));
+        }
         
         for (const auto& msg : context.messages)
         {
@@ -99,10 +132,60 @@ juce::String CloudLLMProvider::buildRequestBody(
         
         requestObj->setProperty("messages", messages);
         requestObj->setProperty("temperature", 0.3);
-        requestObj->setProperty("max_tokens", 500);
-        
+        requestObj->setProperty("max_tokens", 800);
+
+        const juce::String schemaJson = R"({
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "intent": { "type": "string" },
+    "magnitude": { "type": "number" },
+    "title": { "type": "string" },
+    "summary": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "number" },
+    "error": { "type": ["string", "null"] },
+    "parameter_overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eq.band1.freq": { "type": ["number", "null"] },
+        "eq.band1.gain": { "type": ["number", "null"] },
+        "eq.band1.q": { "type": ["number", "null"] },
+        "eq.band2.freq": { "type": ["number", "null"] },
+        "eq.band2.gain": { "type": ["number", "null"] },
+        "eq.band2.q": { "type": ["number", "null"] },
+        "eq.band3.freq": { "type": ["number", "null"] },
+        "eq.band3.gain": { "type": ["number", "null"] },
+        "eq.band3.q": { "type": ["number", "null"] },
+        "sat.drive": { "type": ["number", "null"] },
+        "sat.mix": { "type": ["number", "null"] },
+        "comp.threshold": { "type": ["number", "null"] },
+        "comp.ratio": { "type": ["number", "null"] },
+        "comp.attack": { "type": ["number", "null"] },
+        "comp.release": { "type": ["number", "null"] },
+        "stereo.width": { "type": ["number", "null"] }
+      },
+      "required": [
+        "eq.band1.freq", "eq.band1.gain", "eq.band1.q",
+        "eq.band2.freq", "eq.band2.gain", "eq.band2.q",
+        "eq.band3.freq", "eq.band3.gain", "eq.band3.q",
+        "sat.drive", "sat.mix",
+        "comp.threshold", "comp.ratio", "comp.attack", "comp.release",
+        "stereo.width"
+      ]
+    }
+  },
+  "required": ["intent", "magnitude", "title", "summary", "confidence", "error", "parameter_overrides"]
+})";
+
+        juce::DynamicObject::Ptr jsonSchema = new juce::DynamicObject();
+        jsonSchema->setProperty("name", "chatrack_intent");
+        jsonSchema->setProperty("strict", true);
+        jsonSchema->setProperty("schema", juce::JSON::parse(schemaJson));
+
         juce::DynamicObject::Ptr responseFormat = new juce::DynamicObject();
-        responseFormat->setProperty("type", "json_object");
+        responseFormat->setProperty("type", "json_schema");
+        responseFormat->setProperty("json_schema", juce::var(jsonSchema.get()));
         requestObj->setProperty("response_format", juce::var(responseFormat.get()));
     }
     
@@ -124,7 +207,7 @@ void CloudLLMProvider::processMessage(
     }
     
     juce::String requestBody = buildRequestBody(userMessage, context);
-    DBG("LLM Request body: " << requestBody.substring(0, 200) << "...");
+    DBG("LLM Request body: " << IntentParser::sanitizeDashes(requestBody));
     
     juce::URL url(OPENAI_API_URL);
     url = url.withPOSTData(requestBody);
@@ -156,7 +239,7 @@ void CloudLLMProvider::processMessage(
     }
     
     juce::String responseText = stream->readEntireStreamAsString();
-    DBG("API response: " << responseText.substring(0, 500));
+    DBG("API response: " << IntentParser::sanitizeDashes(responseText));
     
     if (statusCode != 200)
     {
@@ -168,6 +251,8 @@ void CloudLLMProvider::processMessage(
     }
     
     IntentResult result = parseResponse(responseText);
+    DBG("Parsed intent JSON: "
+        << juce::JSON::toString(juce::var(IntentParser::toLogObject(result).get()), true));
     onComplete(result);
 }
 

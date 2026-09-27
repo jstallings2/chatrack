@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -29,7 +30,11 @@ public:
     void setParameter(const juce::String& id, float value);
     float getParameter(const juce::String& id) const;
 
+    void setMasterBypassed(bool shouldBypass) { masterBypassed.store(shouldBypass); }
+    bool isMasterBypassed() const { return masterBypassed.load(); }
+
 private:
+    std::atomic<bool> masterBypassed { false };
     EQProcessor eq;
     CompressorProcessor compressor;
     SaturationProcessor saturation;

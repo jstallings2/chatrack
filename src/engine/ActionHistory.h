@@ -9,6 +9,8 @@ struct UndoSnapshot
 {
     juce::String actionId;
     juce::String intentId;
+    float magnitude = 0.6f;
+    juce::String title;
     std::map<juce::String, float> previousValues;
     std::map<juce::String, float> newValues;
 };
@@ -22,7 +24,9 @@ public:
     void pushSnapshot(const juce::String& actionId,
                       const juce::String& intentId,
                       const std::map<juce::String, float>& previousValues,
-                      const std::map<juce::String, float>& newValues);
+                      const std::map<juce::String, float>& newValues,
+                      float magnitude = 0.6f,
+                      const juce::String& title = {});
     
     bool undo(std::function<void(const juce::String&, float)> applyValue);
     bool redo(std::function<void(const juce::String&, float)> applyValue);

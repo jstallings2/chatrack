@@ -100,9 +100,12 @@ void EQProcessor::updateCoefficients(int bandIndex)
     freq = juce::jlimit(20.0f, static_cast<float>(sampleRate * 0.49), freq);
     q = juce::jmax(0.1f, q);
     
-    auto coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-        sampleRate, freq, q, juce::Decibels::decibelsToGain(gain)
-    );
+    // Band 3 is the air/brighten band: high shelf, not a tight peak at 10k.
+    auto coefficients = (bandIndex == 3)
+        ? juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+              sampleRate, freq, q, juce::Decibels::decibelsToGain(gain))
+        : juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+              sampleRate, freq, q, juce::Decibels::decibelsToGain(gain));
     
     *band.filterL.coefficients = *coefficients;
     *band.filterR.coefficients = *coefficients;

@@ -1,4 +1,110 @@
 #include "PluginEditor.h"
+#include "BuildInfo.h"
+#include "SessionLog.h"
+#include "llm/IntentParser.h"
+
+#include <cmath>
+
+namespace
+{
+    bool isLessFollowUp(const juce::String& raw)
+    {
+        const auto t = raw.trim().toLowerCase();
+        return t == "too much" || t == "less" || t == "a bit less"
+            || t == "a little less" || t.contains("too much");
+    }
+
+    bool isMoreFollowUp(const juce::String& raw)
+    {
+        const auto t = raw.trim().toLowerCase();
+        return t == "more" || t == "even more" || t == "a bit more"
+            || t == "a little more" || t == "more please";
+    }
+
+    ConversationContext buildConversationContext(ChatrackAudioProcessor& processor)
+    {
+        ConversationContext context;
+        context.messages = processor.getConversationMessages();
+        context.currentParameters = processor.getRackController().getCurrentState();
+
+        if (const auto* snap = processor.getActionHistory().getLastSnapshot())
+        {
+            context.lastAction.intentId = snap->intentId;
+            context.lastAction.magnitude = snap->magnitude;
+            context.lastAction.title = snap->title;
+            context.lastAction.valid = snap->intentId.isNotEmpty();
+        }
+
+        return context;
+    }
+
+    bool wantsMore(const juce::String& raw)
+    {
+        const auto t = raw.trim().toLowerCase();
+        return isMoreFollowUp(raw)
+            || t.contains("much")
+            || t.contains("even ")
+            || t.contains("way more");
+    }
+
+    void maybeApplyFollowUpFallback(IntentResult& result,
+                                    const juce::String& userMessage,
+                                    const LastAppliedAction& lastAction)
+    {
+        if (!lastAction.valid)
+            return;
+
+        const bool less = isLessFollowUp(userMessage);
+        const bool more = wantsMore(userMessage);
+
+        if ((less || more) && (!result.success || result.intentId != lastAction.intentId
+                               || result.confidence < 0.5f))
+        {
+            result.success = true;
+            result.intentId = lastAction.intentId;
+            result.magnitude = juce::jlimit(0.1f, 1.0f,
+                lastAction.magnitude + (more ? 0.25f : -0.2f));
+            result.title = lastAction.title;
+            result.summary.clear();
+            result.summary.add(more ? "Increased the last action"
+                                    : "Pulled back the last action");
+            result.errorMessage.clear();
+            result.confidence = 0.7f;
+            return;
+        }
+
+        if (!result.success || result.intentId != lastAction.intentId)
+            return;
+
+        if (more && result.magnitude <= lastAction.magnitude + 0.05f)
+            result.magnitude = juce::jlimit(0.1f, 1.0f, lastAction.magnitude + 0.25f);
+        else if (less && result.magnitude >= lastAction.magnitude - 0.05f)
+            result.magnitude = juce::jlimit(0.1f, 1.0f, lastAction.magnitude - 0.2f);
+    }
+
+    void maybeKeepBrightenForAirFollowUp(IntentResult& result,
+                                         const juce::String& userMessage,
+                                         const LastAppliedAction& lastAction)
+    {
+        if (!lastAction.valid || lastAction.intentId != "brighten")
+            return;
+        if (result.intentId != "reduce_mud")
+            return;
+        if (IntentParser::mentionsMudRequest(userMessage))
+            return;
+        if (!IntentParser::mentionsHighShelfTarget(userMessage))
+            return;
+
+        result.success = true;
+        result.intentId = "brighten";
+        result.errorMessage.clear();
+        if (result.title.isEmpty()
+            || result.title.containsIgnoreCase("mud")
+            || result.title.containsIgnoreCase("low"))
+            result.title = lastAction.title.isNotEmpty() ? lastAction.title
+                                                        : juce::String("High Shelf Boost");
+    }
+}
 
 ChatrackAudioProcessorEditor::ChatrackAudioProcessorEditor(ChatrackAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -63,6 +169,15 @@ void ChatrackAudioProcessorEditor::setupWebView()
         })
         .withNativeFunction("bypassAction", [this](const auto& args, auto complete) {
             handleBypassAction(args, std::move(complete));
+        })
+        .withNativeFunction("getBuildInfo", [this](const auto& args, auto complete) {
+            handleGetBuildInfo(args, std::move(complete));
+        })
+        .withNativeFunction("setMasterBypass", [this](const auto& args, auto complete) {
+            handleSetMasterBypass(args, std::move(complete));
+        })
+        .withNativeFunction("getMasterBypass", [this](const auto& args, auto complete) {
+            handleGetMasterBypass(args, std::move(complete));
         })
         .withResourceProvider([this](const auto& url) {
             return getResource(url);
@@ -147,34 +262,66 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
     
     // Show thinking indicator
     webComponent->emitEventIfBrowserIsVisible("thinkingStatus", juce::var(true));
+
+    ConversationContext context = buildConversationContext(processorRef);
+
+    {
+        juce::DynamicObject::Ptr req = new juce::DynamicObject();
+        req->setProperty("text", userMessage);
+        if (context.lastAction.valid)
+        {
+            req->setProperty("lastIntent", context.lastAction.intentId);
+            req->setProperty("lastMagnitude", context.lastAction.magnitude);
+            req->setProperty("lastTitle", context.lastAction.title);
+        }
+        sessionLogEvent("chat_in", req);
+        sessionLogLine("\n### " + juce::Time::getCurrentTime().formatted("%H:%M:%S")
+                       + "  you\n" + userMessage + "\n");
+    }
     
     // Process through LLM service on background thread
-    juce::Thread::launch([this, userMessage, complete = std::move(complete)]() mutable {
-        ConversationContext context;
-        
+    juce::Thread::launch([this, userMessage, context, complete = std::move(complete)]() mutable {
         processorRef.getLLMService().processMessage(
             userMessage,
             context,
-            [this, complete = std::move(complete)](IntentResult result) mutable {
-                juce::MessageManager::callAsync([this, result, complete = std::move(complete)]() mutable {
+            [this, userMessage, context, complete = std::move(complete)](IntentResult result) mutable {
+                juce::MessageManager::callAsync([this, userMessage, context, result, complete = std::move(complete)]() mutable {
                     // Hide thinking indicator
                     webComponent->emitEventIfBrowserIsVisible("thinkingStatus", juce::var(false));
-                    
+
+                    maybeApplyFollowUpFallback(result, userMessage, context.lastAction);
+                    maybeKeepBrightenForAirFollowUp(result, userMessage, context.lastAction);
+                    IntentParser::applyOverrideFallbacks(result, userMessage);
+
+                    DBG("Parsed intent JSON: "
+                        << juce::JSON::toString(juce::var(IntentParser::toLogObject(result).get()), true));
+
                     if (result.success)
                     {
-                        // Apply recipe and get action card data
-                        auto actions = processorRef.getRecipeEngine().resolveIntent(
+                        auto actions = processorRef.getRecipeEngine().resolveIntentWithOverrides(
                             result.intentId,
-                            result.magnitude
+                            result.magnitude,
+                            result.parameterOverrides
                         );
                         
-                        // Apply through rack controller (creates undo snapshot)
-                        processorRef.getRackController().applyActions(actions, result.intentId);
+                        processorRef.getRackController().applyActions(
+                            actions, result.intentId, result.magnitude, result.title);
+
+                        processorRef.recordConversationTurn("user", userMessage);
+                        processorRef.recordConversationTurn(
+                            "assistant",
+                            "[" + result.intentId + " mag=" + juce::String(result.magnitude, 2)
+                                + "] " + result.title);
                         
                         // Build action card response
+                        const bool editedExisting = context.lastAction.valid
+                            && context.lastAction.intentId == result.intentId;
+
                         juce::DynamicObject::Ptr actionCard = new juce::DynamicObject();
                         actionCard->setProperty("title", result.title);
                         actionCard->setProperty("intentId", result.intentId);
+                        actionCard->setProperty("magnitude", result.magnitude);
+                        actionCard->setProperty("edited", editedExisting);
                         
                         // Convert StringArray to var array for summary
                         juce::Array<juce::var> summaryArr;
@@ -197,6 +344,54 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                             controls.add(juce::var(ctrl.get()));
                         }
                         actionCard->setProperty("controls", controls);
+
+                        {
+                            juce::DynamicObject::Ptr ev = new juce::DynamicObject();
+                            ev->setProperty("text", userMessage);
+                            ev->setProperty("intent", result.intentId);
+                            ev->setProperty("title", result.title);
+                            ev->setProperty("magnitude", result.magnitude);
+                            ev->setProperty("edited", editedExisting);
+                            ev->setProperty("confidence", result.confidence);
+                            if (context.lastAction.valid)
+                            {
+                                ev->setProperty("prevIntent", context.lastAction.intentId);
+                                ev->setProperty("prevMagnitude", context.lastAction.magnitude);
+                            }
+                            const bool noop = editedExisting
+                                && std::abs(result.magnitude - context.lastAction.magnitude) < 0.02f
+                                && result.parameterOverrides.empty();
+                            ev->setProperty("noop", noop);
+                            ev->setProperty("controls", controls);
+                            ev->setProperty("parsed", juce::var(IntentParser::toLogObject(result).get()));
+                            juce::DynamicObject::Ptr overrides = new juce::DynamicObject();
+                            for (const auto& [key, value] : result.parameterOverrides)
+                                overrides->setProperty(key, value);
+                            ev->setProperty("parameter_overrides", juce::var(overrides.get()));
+                            ev->setProperty("override_fallback", result.overrideFallback);
+                            sessionLogEvent("chat_out", ev);
+
+                            juce::String md;
+                            md << "### " << juce::Time::getCurrentTime().formatted("%H:%M:%S")
+                               << "  applied  `" << result.intentId << "`  mag="
+                               << juce::String(result.magnitude, 2)
+                               << (editedExisting ? "  edit" : "  new")
+                               << (noop ? "  noop" : "") << "\n";
+                            if (result.title.isNotEmpty())
+                                md << result.title << "\n";
+                            if (result.parameterOverrides.empty())
+                                md << "overrides: (none)\n";
+                            else
+                            {
+                                md << "overrides:\n";
+                                for (const auto& [key, value] : result.parameterOverrides)
+                                    md << "- " << key << " = " << juce::String(value, 2)
+                                       << (result.overrideFallback ? "  (fallback)" : "") << "\n";
+                            }
+                            for (const auto& control : actions.controls)
+                                md << "- " << control.id << " = " << juce::String(control.value, 2) << "\n";
+                            sessionLogLine(md);
+                        }
                         
                         DBG("Built action card with " << actions.controls.size() << " controls");
                         
@@ -212,6 +407,12 @@ void ChatrackAudioProcessorEditor::handleChatMessage(
                     }
                     else
                     {
+                        juce::DynamicObject::Ptr ev = new juce::DynamicObject();
+                        ev->setProperty("text", userMessage);
+                        ev->setProperty("error", result.errorMessage);
+                        sessionLogEvent("chat_error", ev);
+                        sessionLogLine("### " + juce::Time::getCurrentTime().formatted("%H:%M:%S")
+                                       + "  error\n" + result.errorMessage + "\n");
                         complete(juce::var("Error: " + result.errorMessage));
                     }
                 });
@@ -232,6 +433,12 @@ void ChatrackAudioProcessorEditor::handleSetParameter(
 
     juce::String paramId = args[0].toString();
     float value = static_cast<float>(args[1]);
+
+    juce::DynamicObject::Ptr ev = new juce::DynamicObject();
+    ev->setProperty("param", paramId);
+    ev->setProperty("value", value);
+    sessionLogEvent("knob", ev);
+    sessionLogLine("- knob " + paramId + " = " + juce::String(value, 2) + "\n");
     
     if (auto* param = processorRef.getAPVTS().getParameter(paramId))
     {
@@ -358,6 +565,25 @@ void ChatrackAudioProcessorEditor::handleLoadApiKey(
     complete(juce::var());
 }
 
+void ChatrackAudioProcessorEditor::handleGetBuildInfo(
+    const juce::Array<juce::var>& args,
+    juce::WebBrowserComponent::NativeFunctionCompletion complete)
+{
+    juce::ignoreUnused(args);
+
+    juce::DynamicObject::Ptr info = new juce::DynamicObject();
+    info->setProperty("version", getChatrackVersion());
+    info->setProperty("builtAt", getChatrackBuildStamp());
+    info->setProperty("label", getChatrackBuildLabel());
+#if JUCE_DEBUG
+    info->setProperty("debug", true);
+#else
+    info->setProperty("debug", false);
+#endif
+
+    complete(juce::var(info.get()));
+}
+
 void ChatrackAudioProcessorEditor::handleBypassAction(
     const juce::Array<juce::var>& args,
     juce::WebBrowserComponent::NativeFunctionCompletion complete)
@@ -416,6 +642,24 @@ void ChatrackAudioProcessorEditor::handleBypassAction(
     }
     
     complete(juce::var(true));
+}
+
+void ChatrackAudioProcessorEditor::handleSetMasterBypass(
+    const juce::Array<juce::var>& args,
+    juce::WebBrowserComponent::NativeFunctionCompletion complete)
+{
+    const bool bypass = !args.isEmpty() && static_cast<bool>(args[0]);
+    processorRef.getRackProcessor().setMasterBypassed(bypass);
+    DBG("Master bypass: " << (bypass ? "on" : "off"));
+    complete(juce::var(bypass));
+}
+
+void ChatrackAudioProcessorEditor::handleGetMasterBypass(
+    const juce::Array<juce::var>& args,
+    juce::WebBrowserComponent::NativeFunctionCompletion complete)
+{
+    juce::ignoreUnused(args);
+    complete(juce::var(processorRef.getRackProcessor().isMasterBypassed()));
 }
 
 void ChatrackAudioProcessorEditor::paint(juce::Graphics& g)

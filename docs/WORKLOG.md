@@ -1,5 +1,32 @@
 # Chatrack Work Log
 
+## Session: 2026-09-19 — Open the rack + language overrides
+
+### What shipped
+
+- Follow-ups edit the last tool instead of stacking a new card.
+- `parameter_overrides` actually apply. Shine / air / cymbals must set `eq.band3.freq` (10–16 kHz); parse recovers string/fence/null cases; last-resort fill if the model only talks Hz in the summary.
+- Persistent rack strip + master bypass (not gain-matched).
+- Host relaunch after builds: `./scripts/run-host.sh`.
+- Session logs in `logs/` (gitignored). Build stamp in the UI is compile time; semver stays 0.1.0.
+
+### Seek (side repo, same day)
+
+- `tools/sonic-analysis --mode scene` — object graph for one file. Layer 2 moved to `gpt-audio-1.5` (`gpt-4o-audio-preview` retired 2026-05-07).
+- First live listen was intern-quality. Fact-check and next experiments: `docs/journal/2026-09-19-elements-and-ears.md`.
+
+### Decisions (not code)
+
+- Route A: tool picker, finish by ear. ADR-0001. B is filed.
+- Mix-deconstruct and machine listening stay in seek. Do not inject scene JSON yet.
+- Language V2 is the right product slice and is **not** signed off. Next: synthetic phrase sweep + more host tests.
+
+### Write-up
+
+Briefing: `docs/journal/2026-09-19-session-notes.md`. Papers: `docs/research/PAPERS.md`.
+
+---
+
 ## Session: March 12, 2026 - Initial Implementation
 
 ### What Was Done
@@ -111,6 +138,9 @@ chatrack/
 ### Session Notes
 
 - Plugin loads in AudioPluginHost via `chatrack.filtergraph`
+- After a plugin build, relaunch the host: `./scripts/run-host.sh` (or `cmake --build build --target run_host --config Debug`)
+- Master A/B bypasses the whole rack. It does not gain-match yet.
+- Test loop: `resources/test-loop.wav` — load it in AUAudioFilePlayer once and File → Save if the player is empty
 - Dev server: `cd ui && npm run dev` (localhost:5173)
 - Build: `cmake --build build --config Debug`
 - Debug logs visible in Console.app (search for "Chatrack" or "AudioPluginHost")

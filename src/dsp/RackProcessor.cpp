@@ -19,6 +19,9 @@ void RackProcessor::prepare(const juce::dsp::ProcessSpec& spec)
 
 void RackProcessor::process(juce::dsp::AudioBlock<float>& block)
 {
+    if (masterBypassed.load())
+        return;
+
     eq.process(block);
     compressor.process(block);
     saturation.process(block);

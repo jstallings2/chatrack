@@ -13,7 +13,10 @@ public:
                    juce::AudioProcessorValueTreeState& apvts);
     ~RackController() = default;
     
-    void applyActions(const ResolvedRecipe& recipe, const juce::String& intentId);
+    void applyActions(const ResolvedRecipe& recipe,
+                      const juce::String& intentId,
+                      float magnitude = 0.6f,
+                      const juce::String& title = {});
     void setParameterDirectly(const juce::String& paramId, float value);
     float getParameter(const juce::String& paramId) const;
     

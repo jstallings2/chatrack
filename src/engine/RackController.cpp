@@ -10,7 +10,10 @@ RackController::RackController(
 {
 }
 
-void RackController::applyActions(const ResolvedRecipe& recipe, const juce::String& intentId)
+void RackController::applyActions(const ResolvedRecipe& recipe,
+                                  const juce::String& intentId,
+                                  float magnitude,
+                                  const juce::String& title)
 {
     std::vector<juce::String> paramIds;
     for (const auto& action : recipe.actions)
@@ -28,7 +31,7 @@ void RackController::applyActions(const ResolvedRecipe& recipe, const juce::Stri
     }
     
     juce::String actionId = "action_" + juce::String(++actionCounter);
-    actionHistory.pushSnapshot(actionId, intentId, previousValues, newValues);
+    actionHistory.pushSnapshot(actionId, intentId, previousValues, newValues, magnitude, title);
 }
 
 void RackController::setParameterDirectly(const juce::String& paramId, float value)
